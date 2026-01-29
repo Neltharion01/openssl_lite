@@ -1,0 +1,22 @@
+[package]
+name = "openssl_lite"
+version = "0.1.0"
+edition = "2024"
+
+authors = ["Neltharion01"]
+license = "MIT OR Apache-2.0"
+description = "Light bindings to OpenSSL (with tokio support)"
+readme = "README.md"
+repository = "https://github.com/Neltharion01/openssl_lite"
+keywords = ["openssl"]
+
+[features]
+default = ["tokio"]
+cmd = ["tokio", "tokio/rt-multi-thread"]
+
+[dependencies]
+tokio = { version = "1.49.0", features = ["net"], optional = true }
+
+[[bin]]
+name = "openssl_lite"
+required-features = ["cmd"]

@@ -1,0 +1,53 @@
+#![allow(non_camel_case_types, non_snake_case)]
+
+use core::ffi::{c_int, c_ulong, c_long, c_char, c_void};
+
+// Those are uninhabited void pointers
+pub enum SSL_METHOD {}
+pub enum SSL_CTX {}
+pub enum SSL {}
+//pub enum BIO {}
+
+pub const SSL_VERIFY_NONE: c_int = 0;
+pub const SSL_VERIFY_PEER: c_int = 1;
+
+pub const SSL_CTRL_SET_MIN_PROTO_VERSION: c_int = 123;
+pub const TLS1_2_VERSION: c_long = 0x0303;
+
+pub mod error {
+    use core::ffi::c_int;
+
+    pub const SSL_ERROR_SSL: c_int = 1;
+    pub const SSL_ERROR_WANT_READ: c_int = 2;
+    pub const SSL_ERROR_WANT_WRITE: c_int = 3;
+    pub const SSL_ERROR_SYSCALL: c_int = 5;
+    pub const SSL_ERROR_ZERO_RETURN: c_int = 6;
+}
+
+unsafe extern "C" {
+    pub fn TLS_method() -> *const SSL_METHOD;
+    pub fn SSL_CTX_new(method: *const SSL_METHOD) -> *mut SSL_CTX;
+    //pub fn SSL_CTX_set_alpn_protos(ctx: *mut SSL_CTX, protos: *const u8, protos_len: c_int) -> c_int;
+    pub fn SSL_CTX_set_default_verify_paths(ctx: *mut SSL_CTX) -> c_int;
+    pub fn SSL_CTX_set_verify(ctx: *mut SSL_CTX, mode: c_int, verify_callback: *const c_void);
+    pub fn SSL_CTX_ctrl(ctx: *mut SSL_CTX, cmd: c_int, larg: c_long, parg: *mut c_void) -> c_long;
+    pub fn SSL_CTX_free(ctx: *mut SSL_CTX);
+
+    pub fn SSL_new(ctx: *mut SSL_CTX) -> *mut SSL;
+    //pub fn SSL_set_tlsext_host_name(ssl: *const SSL, name: *const c_char) -> c_int;
+    pub fn SSL_set_fd(ssl: *mut SSL, fd: c_int) -> c_int;
+    pub fn SSL_connect(ssl: *mut SSL) -> c_int;
+    pub fn SSL_read(ssl: *mut SSL, buf: *mut u8, num: c_int) -> c_int;
+    pub fn SSL_write(ssl: *mut SSL, buf: *const u8, num: c_int) -> c_int;
+    pub fn SSL_get_error(ssl: *const SSL, ret: c_int) -> c_int;
+    pub fn SSL_shutdown(ssl: *mut SSL) -> c_int;
+    pub fn SSL_free(ssl: *mut SSL);
+
+    pub fn ERR_get_error() -> c_ulong;
+    pub fn ERR_error_string_n(e: c_ulong, buf: *mut c_char, len: usize);
+}
+
+// implemented in C macros
+pub unsafe fn SSL_CTX_set_min_proto_version(ctx: *mut SSL_CTX, version: c_long) -> c_long {
+    unsafe { SSL_CTX_ctrl(ctx, SSL_CTRL_SET_MIN_PROTO_VERSION, version, core::ptr::null_mut()) }
+}
