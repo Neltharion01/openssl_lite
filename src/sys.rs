@@ -16,6 +16,8 @@ pub const SSL_VERIFY_PEER: c_int = 1;
 pub const SSL_CTRL_SET_MIN_PROTO_VERSION: c_int = 123;
 pub const TLS1_2_VERSION: c_long = 0x0303;
 
+pub const SSL_FILETYPE_PEM: c_int = 1;
+
 pub mod error {
     use core::ffi::c_int;
 
@@ -33,12 +35,18 @@ unsafe extern "C" {
     pub fn SSL_CTX_set_default_verify_paths(ctx: *mut SSL_CTX) -> c_int;
     pub fn SSL_CTX_set_verify(ctx: *mut SSL_CTX, mode: c_int, verify_callback: *const c_void);
     pub fn SSL_CTX_ctrl(ctx: *mut SSL_CTX, cmd: c_int, larg: c_long, parg: *mut c_void) -> c_long;
+    pub fn SSL_CTX_set_cipher_list(ctx: *mut SSL_CTX, str: *const c_char) -> c_int;
+    pub fn SSL_CTX_use_certificate_file(ctx: *mut SSL_CTX, file: *const c_char, _type: c_int) -> c_int;
+    pub fn SSL_CTX_use_PrivateKey_file(ctx: *mut SSL_CTX, file: *const c_char, _type: c_int) -> c_int;
+    pub fn SSL_CTX_check_private_key(ctx: *mut SSL_CTX) -> c_int;
+
     pub fn SSL_CTX_free(ctx: *mut SSL_CTX);
 
     pub fn SSL_new(ctx: *mut SSL_CTX) -> *mut SSL;
     //pub fn SSL_set_tlsext_host_name(ssl: *const SSL, name: *const c_char) -> c_int;
     pub fn SSL_set_fd(ssl: *mut SSL, fd: c_int) -> c_int;
     pub fn SSL_connect(ssl: *mut SSL) -> c_int;
+    pub fn SSL_accept(ssl: *mut SSL) -> c_int;
     pub fn SSL_read(ssl: *mut SSL, buf: *mut u8, num: c_int) -> c_int;
     pub fn SSL_write(ssl: *mut SSL, buf: *const u8, num: c_int) -> c_int;
     pub fn SSL_get_error(ssl: *const SSL, ret: c_int) -> c_int;

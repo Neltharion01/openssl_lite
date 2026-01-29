@@ -46,7 +46,7 @@ fn s_client(addr: &str) -> io::Result<()> {
     use std::io::{Read, Write};
     use std::net::TcpStream;
 
-    let mut ctx = SslCtx::new()?;
+    let mut ctx = SslCtx::new_client()?;
     // Certificate verification has been intentionally disabled for testing,
     // local server has self signed certificate
     ctx.set_verify(false);
@@ -54,7 +54,7 @@ fn s_client(addr: &str) -> io::Result<()> {
     let mut ssl = Ssl::new(&ctx)?;
     let sock = TcpStream::connect(addr)?;
     sock.set_nodelay(true)?;
-    ssl.set_fd(sock)?; // This calls IntoRawFd
+    ssl.set_fd(&sock)?; // This calls AsRawFd
     ssl.connect()?;
 
     // Read stdin
@@ -71,7 +71,35 @@ fn s_client(addr: &str) -> io::Result<()> {
 }
 
 fn s_client_tokio(_addr: &str) -> io::Result<()> { todo!(); }
-fn s_server(_addr: &str) -> io::Result<()> { todo!(); }
+
+fn s_server(addr: &str) -> io::Result<()> {
+    use std::io::{Read, Write};
+    use std::net::TcpListener;
+
+    let mut ctx = SslCtx::new_server()?;
+    ctx.load_certificate_chain(c"cert.pem", c"key.pem")?;
+
+    let sock = TcpListener::bind(addr)?;
+
+    let (conn, _addr) = sock.accept()?;
+    conn.set_nodelay(true)?;
+    let mut ssl = Ssl::new(&ctx)?;
+    ssl.set_fd(&conn)?;
+    ssl.accept()?;
+
+    // Read stdin
+    let mut buf = vec![];
+    io::stdin().read_to_end(&mut buf).expect("stdin");
+    ssl.write_all(&buf)?;
+
+    // Read connection
+    buf.clear();
+    ssl.read_to_end(&mut buf)?;
+    io::stdout().write_all(&buf).expect("stdout");
+
+    Ok(())
+}
+
 fn s_server_tokio(_addr: &str) -> io::Result<()> { todo!(); }
 
 // To make it async:

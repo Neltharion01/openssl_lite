@@ -2,9 +2,9 @@ use core::ffi::c_int;
 use std::io::{self, Read, Write, ErrorKind};
 
 #[cfg(windows)]
-use std::os::windows::IntoRawHandle;
+use std::os::windows::AsRawHandle;
 #[cfg(unix)]
-use std::os::fd::IntoRawFd;
+use std::os::fd::AsRawFd;
 
 use crate::sys;
 use crate::{SslCtx, ErrorStack};
@@ -23,15 +23,15 @@ impl Ssl {
     }
 
     #[cfg(windows)]
-    pub fn set_fd(&mut self, fd: impl IntoRawHandle) -> Result<(), ErrorStack> {
-        let ret = unsafe { sys::SSL_set_fd(self.0, fd.into_raw_handle() as c_int) };
+    pub fn set_fd(&mut self, fd: &impl AsRawHandle) -> Result<(), ErrorStack> {
+        let ret = unsafe { sys::SSL_set_fd(self.0, fd.as_raw_handle() as c_int) };
         if ret == 0 { return Err(ErrorStack::get()); }
         /* success == 1 */ Ok(())
     }
 
     #[cfg(unix)]
-    pub fn set_fd(&mut self, fd: impl IntoRawFd) -> Result<(), ErrorStack> {
-        let ret = unsafe { sys::SSL_set_fd(self.0, fd.into_raw_fd()) };
+    pub fn set_fd(&mut self, fd: &impl AsRawFd) -> Result<(), ErrorStack> {
+        let ret = unsafe { sys::SSL_set_fd(self.0, fd.as_raw_fd()) };
         if ret == 0 { return Err(ErrorStack::get()); }
         /* success == 1 */ Ok(())
     }
@@ -63,6 +63,12 @@ impl Ssl {
             SSL_ERROR_WANT_READ | SSL_ERROR_WANT_WRITE => ErrorKind::WouldBlock.into(),
             _ => ErrorKind::Other.into(),
         }
+    }
+
+    pub fn accept(&mut self) -> io::Result<()> {
+        let ret = unsafe { sys::SSL_accept(self.0) };
+        if ret == 1 { return Ok(()); }
+        /* ret <= 0 */ Err(self.make_error(ret))
     }
 }
 
