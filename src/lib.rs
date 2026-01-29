@@ -18,3 +18,4 @@ pub use ssl::Ssl;
 // )?;
 // - Client allowed ciphers:
 // ctx.set_cipher_list("DEFAULT:!aNULL:!eNULL:!MD5:!3DES:!DES:!RC4:!IDEA:!SEED:!aDSS:!SRP:!PSK")?;
+// - Rustdoc

@@ -3,10 +3,12 @@
 use core::ffi::{c_int, c_ulong, c_long, c_char, c_void};
 
 // Those are uninhabited void pointers
-pub enum SSL_METHOD {}
-pub enum SSL_CTX {}
-pub enum SSL {}
-//pub enum BIO {}
+#[repr(C)]
+pub struct SSL([u8; 0]);
+#[repr(C)]
+pub struct SSL_CTX([u8; 0]);
+#[repr(C)]
+pub struct SSL_METHOD([u8; 0]);
 
 pub const SSL_VERIFY_NONE: c_int = 0;
 pub const SSL_VERIFY_PEER: c_int = 1;
