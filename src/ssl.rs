@@ -119,7 +119,7 @@ impl Write for Ssl {
     }
 
     fn flush(&mut self) -> io::Result<()> {
-        todo!()
+        Ok(())
     }
 }
 

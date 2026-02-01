@@ -71,6 +71,7 @@ fn s_client(addr: &str, insecure: bool) -> io::Result<()> {
     buf.clear();
     ssl.read_to_end(&mut buf)?;
     io::stdout().write_all(&buf).expect("stdout");
+    ssl.shutdown()?;
 
     Ok(())
 }
@@ -108,6 +109,7 @@ async fn s_client_tokio_async(addr: &str, insecure: bool) -> io::Result<()> {
     buf.clear();
     ssl.read_to_end(&mut buf).await?;
     tokio::io::stdout().write_all(&buf).await.expect("stdout");
+    ssl.shutdown().await?;
 
     Ok(())
 }
@@ -121,7 +123,8 @@ fn s_server(addr: &str) -> io::Result<()> {
 
     let sock = TcpListener::bind(addr)?;
 
-    let (conn, _addr) = sock.accept()?;
+    let (conn, addr) = sock.accept()?;
+    eprintln!("[*] Connection from {addr}");
     conn.set_nodelay(true)?;
     let mut ssl = Ssl::new(&ctx)?;
     ssl.set_fd(&conn)?;
@@ -136,18 +139,43 @@ fn s_server(addr: &str) -> io::Result<()> {
     buf.clear();
     ssl.read_to_end(&mut buf)?;
     io::stdout().write_all(&buf).expect("stdout");
+    ssl.shutdown()?;
 
     Ok(())
 }
 
-fn s_server_tokio(_addr: &str) -> io::Result<()> { todo!(); }
+fn s_server_tokio(addr: &str) -> io::Result<()> {
+    tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()?
+        .block_on(s_server_tokio_async(addr))
+}
 
-// To make it async:
-// - BIO has to call AsyncRead/AsyncWrite
-// - When SSL_ERROR_WANT_READ/WRITE is returned, just convert it into Poll
+async fn s_server_tokio_async(addr: &str) -> io::Result<()> {
+    use tokio::net::TcpListener;
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
-// The problem:
-// To call AsyncRead BIO, we have to pass cx
-// We either set bio state as cx reference each time,
-// or create a memory BIO instead and push bytes on every SSL_ERROR_WANTS_READ/WRITE
-// Blocking BIO does not need any state
+    let mut ctx = SslCtx::new()?;
+    ctx.load_certificate_chain(c"cert.pem", c"key.pem")?;
+
+    let sock = TcpListener::bind(addr).await?;
+
+    let (conn, addr) = sock.accept().await?;
+    eprintln!("[*] Connection from {addr}");
+    conn.set_nodelay(true)?;
+    let mut ssl = AsyncSsl::new(&ctx, conn)?;
+    ssl.accept().await?;
+
+    // Read stdin
+    let mut buf = vec![];
+    tokio::io::stdin().read_to_end(&mut buf).await.expect("stdin");
+    ssl.write_all(&buf).await?;
+
+    // Read connection
+    buf.clear();
+    ssl.read_to_end(&mut buf).await?;
+    tokio::io::stdout().write_all(&buf).await.expect("stdout");
+    ssl.shutdown().await?;
+
+    Ok(())
+}

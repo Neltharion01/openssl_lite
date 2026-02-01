@@ -13,6 +13,4 @@ mod async_ssl;
 pub use async_ssl::AsyncSsl;
 
 // Very important TODOs:
-// - Ssl::flush
-// - SSL_peek & BufRead
 // - Rustdoc
