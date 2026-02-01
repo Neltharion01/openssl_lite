@@ -1,5 +1,5 @@
-use core::ffi::c_int;
-use std::io::{self, Read, Write, ErrorKind};
+use core::ffi::{CStr, c_int};
+use std::io::{self, Read, Write};
 
 #[cfg(windows)]
 use std::os::windows::AsRawHandle;
@@ -7,8 +7,9 @@ use std::os::windows::AsRawHandle;
 use std::os::fd::AsRawFd;
 
 use crate::sys;
-use crate::{SslCtx, ErrorStack};
+use crate::{SslCtx, ErrorStack, SslError};
 
+#[derive(Debug)]
 pub struct Ssl(*mut sys::SSL);
 
 // All non-reentrant methods take &mut ref
@@ -20,6 +21,16 @@ impl Ssl {
         let ptr = unsafe { sys::SSL_new(ctx.0) };
         if ptr.is_null() { return Err(ErrorStack::get()); }
         Ok(Ssl(ptr))
+    }
+
+    pub fn set_hostname(&mut self, hostname: &CStr) -> Result<(), ErrorStack> {
+        let ret = unsafe { sys::SSL_set1_host(self.0, hostname.as_ptr()) };
+        if ret == 0 { return Err(ErrorStack::get()); }
+
+        let ret = unsafe { sys::SSL_set_tlsext_host_name(self.0, hostname.as_ptr()) };
+        if ret == 0 { return Err(ErrorStack::get()); }
+
+        Ok(())
     }
 
     #[cfg(windows)]
@@ -36,67 +47,75 @@ impl Ssl {
         /* success == 1 */ Ok(())
     }
 
-    pub fn connect(&mut self) -> io::Result<()> {
+    pub fn connect(&mut self) -> Result<(), SslError> {
         let ret = unsafe { sys::SSL_connect(self.0) };
         if ret == 1 { return Ok(()); }
         Err(self.make_error(ret))
     }
 
-    pub fn shutdown(&mut self) -> io::Result<()> {
-        while self.do_shutdown()? != 1 {}
-        Ok(())
+    pub fn shutdown(&mut self) -> Result<(), SslError> {
+        loop {
+            let ret = unsafe { sys::SSL_shutdown(self.0) };
+            match ret {
+                1 => return Ok(()),
+                0 => continue, // retry
+                _ => return Err(self.make_error(ret)),
+            }
+        }
     }
 
-    fn do_shutdown(&mut self) -> io::Result<c_int> {
-        let ret = unsafe { sys::SSL_shutdown(self.0) };
-        if ret < 0 { return Err(self.make_error(ret)); }
-        Ok(ret)
-    }
-
-    fn make_error(&self, ret: c_int) -> io::Error {
+    fn make_error(&self, ret: c_int) -> SslError {
         use sys::error::*;
 
         let code = unsafe { sys::SSL_get_error(self.0, ret) };
         match code {
-            SSL_ERROR_SSL | SSL_ERROR_SYSCALL => io::Error::other(ErrorStack::get()),
-            SSL_ERROR_ZERO_RETURN => ErrorKind::UnexpectedEof.into(),
-            SSL_ERROR_WANT_READ | SSL_ERROR_WANT_WRITE => ErrorKind::WouldBlock.into(),
-            _ => ErrorKind::Other.into(),
+            SSL_ERROR_ZERO_RETURN => SslError::ZeroReturn,
+            SSL_ERROR_SYSCALL => SslError::Syscall(io::Error::last_os_error()),
+            SSL_ERROR_SSL => SslError::Ssl(ErrorStack::get()),
+            SSL_ERROR_WANT_READ => SslError::WantRead,
+            SSL_ERROR_WANT_WRITE => SslError::WantWrite,
+            _ => SslError::Other,
         }
     }
 
-    pub fn accept(&mut self) -> io::Result<()> {
+    pub fn accept(&mut self) -> Result<(), SslError> {
         let ret = unsafe { sys::SSL_accept(self.0) };
         if ret == 1 { return Ok(()); }
         /* ret <= 0 */ Err(self.make_error(ret))
     }
-}
 
-impl Read for Ssl {
-    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+    pub fn ssl_read(&mut self, buf: &mut [u8]) -> Result<usize, SslError> {
         if buf.is_empty() { return Ok(0); }
         let len = usize::min(buf.len(), c_int::MAX as usize) as c_int;
         let ret = unsafe { sys::SSL_read(self.0, buf.as_mut_ptr(), len) };
         if ret <= 0 {
             let err = self.make_error(ret);
-            if err.kind() == ErrorKind::UnexpectedEof { return Ok(0); }
-            return Err(err);
+            if matches!(err, SslError::ZeroReturn) { return Ok(0); }
+            return Err(err.into());
+        }
+        Ok(ret as usize)
+    }
+
+    pub fn ssl_write(&mut self, buf: &[u8]) -> Result<usize, SslError> {
+        if buf.is_empty() { return Ok(0); }
+        let len = usize::min(buf.len(), c_int::MAX as usize) as c_int;
+        let ret = unsafe { sys::SSL_write(self.0, buf.as_ptr(), len) };
+        if ret <= 0 {
+            return Err(self.make_error(ret).into());
         }
         Ok(ret as usize)
     }
 }
 
+impl Read for Ssl {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        self.ssl_read(buf).map_err(|e| e.into())
+    }
+}
+
 impl Write for Ssl {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        if buf.is_empty() { return Ok(0); }
-        let len = usize::min(buf.len(), c_int::MAX as usize) as c_int;
-        let ret = unsafe { sys::SSL_write(self.0, buf.as_ptr(), len) };
-        if ret <= 0 {
-            let err = self.make_error(ret);
-            if err.kind() == ErrorKind::UnexpectedEof { return Ok(0); }
-            return Err(err);
-        }
-        Ok(ret as usize)
+        self.ssl_write(buf).map_err(|e| e.into())
     }
 
     fn flush(&mut self) -> io::Result<()> {

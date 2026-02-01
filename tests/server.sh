@@ -6,7 +6,7 @@ if [ ! -r cert.pem ]; then
     -subj "/O=openssl_lite/CN=localhost"
 fi
 
-cargo run --features=cmd s_server 127.0.0.1:8443 <<EOF
+cargo run --features=cmd s_server 0.0.0.0:8443 <<EOF
 HTTP/1.1 200 OK
 Content-Length: 19
 Connection: close
