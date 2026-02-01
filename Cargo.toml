@@ -11,7 +11,7 @@ repository = "https://github.com/Neltharion01/openssl_lite"
 keywords = ["openssl"]
 
 [features]
-default = []
+default = ["tokio"]
 tokio = ["dep:tokio", "dep:pin-project-lite"]
 cmd = ["tokio", "tokio/rt-multi-thread", "tokio/io-std"]
 
