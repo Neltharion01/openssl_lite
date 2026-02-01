@@ -5,10 +5,12 @@ use std::error::Error;
 
 use crate::sys;
 
+/// OpenSSL error stack
 #[derive(Debug)]
 pub struct ErrorStack(pub Vec<String>);
 
 impl ErrorStack {
+    /// Retrieves the error stack. Usually, you don't need this
     pub fn get() -> ErrorStack {
         let mut errors = vec![];
         while let Some(err) = get_error() {
@@ -50,12 +52,22 @@ fn get_error() -> Option<String> {
     Some(s)
 }
 
+/// Error returned by the SSL object methods
+///
+/// Can be automatically converted to [`std::io::Error`]
 #[derive(Debug)]
 pub enum SslError {
+    /// `SSL_ERROR_ZERO_RETURN`: The socket does not have any more data because it has been closed
     ZeroReturn,
+    /// `SSL_ERROR_SYSCALL`: A fatal I/O error occured, and no more operations should be performed on this object
     Syscall(io::Error),
+    /// `SSL_ERROR_SSL`: Non-recoverable protocol error
     Ssl(ErrorStack),
-    WantRead, WantWrite,
+    /// `SSL_ERROR_WANT_READ`: The operation was not completed and can be retried after socket becomes readable
+    WantRead,
+    /// `SSL_ERROR_WANT_WRITE`: Same as `WantRead`, but socket has to become writable
+    WantWrite,
+    /// Unspecified error
     Other,
 }
 

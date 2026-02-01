@@ -10,9 +10,25 @@ use pin_project_lite::pin_project;
 
 use crate::{SslCtx, Ssl, ErrorStack, SslError};
 
-// Don't forget to manually shut down
-
 pin_project! {
+    /// Async version of [`Ssl`], implements [`tokio::io::AsyncRead`] and [`tokio::io::AsyncWrite`]
+    ///
+    /// Example usage:
+    /// ```ignore
+    /// let ctx = SslCtx::new()?;
+    /// let mut ssl = AsyncSsl::new(&ctx, socket)?;
+    /// ssl.set_hostname(c"Neltharion01.github.io");
+    /// ssl.connect().await?;
+    ///
+    /// // Async versions of ssl.read(), ssl.write() are available
+    /// // To use, import:
+    /// // use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    ///
+    /// // After you are done, close the connection
+    /// ssl.shutdown().await?;
+    /// ```
+    /// Async version DOES NOT close the connection automatically!
+    /// Always make sure that you have closed it by calling `ssl.shutdown().await`
     #[derive(Debug)]
     pub struct AsyncSsl {
         ssl: Ssl,
@@ -21,16 +37,19 @@ pin_project! {
 }
 
 impl AsyncSsl {
+    /// Constructs a new async SSL
     pub fn new(ctx: &SslCtx, stream: TcpStream) -> Result<AsyncSsl, ErrorStack> {
         let mut ssl = Ssl::new(ctx)?;
         ssl.set_fd(&stream)?;
         Ok(AsyncSsl { ssl, stream })
     }
 
+    /// Sets the hostname for verification
     pub fn set_hostname(&mut self, hostname: &CStr) -> Result<(), ErrorStack> {
         self.ssl.set_hostname(hostname)
     }
 
+    /// Performs the connection as a client
     pub async fn connect(&mut self) -> Result<(), SslError> {
         loop {
             let ret = self.ssl.connect();
@@ -42,6 +61,7 @@ impl AsyncSsl {
         }
     }
 
+    /// Accepts the connection as a server
     pub async fn accept(&mut self) -> Result<(), SslError> {
         loop {
             let ret = self.ssl.accept();

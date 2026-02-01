@@ -1,2 +1,2 @@
 # openssl_lite
-Light bindings to OpenSSL (with tokio support)
+Lightweight OpenSSL bindings for Rust (with tokio support)

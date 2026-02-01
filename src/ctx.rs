@@ -3,9 +3,17 @@ use core::ffi::CStr;
 use crate::sys;
 use crate::ErrorStack;
 
+/// SSL context
 pub struct SslCtx(pub(crate) *mut sys::SSL_CTX);
 
+unsafe impl Send for SslCtx {}
+unsafe impl Sync for SslCtx {}
+
 impl SslCtx {
+    /// Constructs a new SSL context
+    ///
+    /// By default, verifies certificates and only accepts TLSv1.2 and newer
+    #[doc(alias = "SSL_CTX_new")]
     pub fn new() -> Result<SslCtx, ErrorStack> {
         let ptr = unsafe { sys::SSL_CTX_new(sys::TLS_method()) };
         if ptr.is_null() { return Err(ErrorStack::get()); }
@@ -30,11 +38,15 @@ impl SslCtx {
         /* success == 1 */ Ok(())
     }
 
+    /// Enable/disable certificate verification
+    #[doc(alias = "SSL_CTX_set_verify")]
     pub fn set_verify(&mut self, verify: bool) {
         let mode = if verify { sys::SSL_VERIFY_PEER } else { sys::SSL_VERIFY_NONE };
         unsafe { sys::SSL_CTX_set_verify(self.0, mode, core::ptr::null()) };
     }
 
+    /// Loads server's certificate and private key files
+    #[doc(alias = "SSL_CTX_use_certificate_file", alias = "SSL_CTX_use_PrivateKey_file", alias = "SSL_CTX_check_private_key")]
     pub fn load_certificate_chain(&mut self, certificate: &CStr, key: &CStr) -> Result<(), ErrorStack> {
         let ret = unsafe { sys::SSL_CTX_use_certificate_file(self.0, certificate.as_ptr(), sys::SSL_FILETYPE_PEM) };
         if ret == 0 { return Err(ErrorStack::get()); }
