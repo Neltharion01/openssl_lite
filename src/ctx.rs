@@ -20,7 +20,7 @@ impl SslCtx {
 
         let mut ctx = SslCtx(ptr);
         ctx.set_default_verify_paths()?;
-        ctx.set_min_version(sys::TLS1_2_VERSION)?;
+        ctx.set_min_version(crate::version::TLS1_2_VERSION)?;
         ctx.set_verify(true);
 
         Ok(ctx)
