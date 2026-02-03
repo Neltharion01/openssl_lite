@@ -22,10 +22,11 @@ impl ErrorStack {
 
 impl fmt::Display for ErrorStack {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        for err in &self.0 {
-            write!(f, "{err}\n")?;
+        if self.0.is_empty() {
+            f.write_str("Empty SSL error stack")
+        } else {
+            f.write_str(&self.0[0])
         }
-        Ok(())
     }
 }
 
