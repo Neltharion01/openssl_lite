@@ -14,7 +14,6 @@ pub const SSL_VERIFY_NONE: c_int = 0;
 pub const SSL_VERIFY_PEER: c_int = 1;
 
 pub const SSL_CTRL_SET_MIN_PROTO_VERSION: c_int = 123;
-pub const TLS1_2_VERSION: c_long = 0x0303;
 pub const SSL_CTRL_SET_TLSEXT_HOSTNAME: c_int = 55;
 pub const TLSEXT_NAMETYPE_host_name: c_long = 0;
 

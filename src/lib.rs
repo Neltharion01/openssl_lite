@@ -20,3 +20,13 @@ pub use ssl::Ssl;
 mod async_ssl;
 #[cfg(feature = "tokio")]
 pub use async_ssl::AsyncSsl;
+
+/// TLS versions for [`SslCtx::set_min_version`]
+pub mod version {
+    use core::ffi::c_long;
+
+    pub const TLS1_0_VERSION: c_long = 0x0301;
+    pub const TLS1_1_VERSION: c_long = 0x0302;
+    pub const TLS1_2_VERSION: c_long = 0x0303;
+    pub const TLS1_3_VERSION: c_long = 0x0304;
+}

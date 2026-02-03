@@ -1,4 +1,4 @@
-use core::ffi::CStr;
+use core::ffi::{CStr, c_long};
 
 use crate::sys;
 use crate::ErrorStack;
@@ -20,7 +20,7 @@ impl SslCtx {
 
         let mut ctx = SslCtx(ptr);
         ctx.set_default_verify_paths()?;
-        ctx.set_tls12()?;
+        ctx.set_min_version(sys::TLS1_2_VERSION)?;
         ctx.set_verify(true);
 
         Ok(ctx)
@@ -32,8 +32,11 @@ impl SslCtx {
         /* success == 1 */ Ok(())
     }
 
-    fn set_tls12(&mut self) -> Result<(), ErrorStack> {
-        let ret = unsafe { sys::SSL_CTX_set_min_proto_version(self.0, sys::TLS1_2_VERSION) };
+    /// Sets min TLS version. Accepts constants from [`crate::version`]
+    ///
+    /// By default, it is TLS 1.2
+    pub fn set_min_version(&mut self, ver: c_long) -> Result<(), ErrorStack> {
+        let ret = unsafe { sys::SSL_CTX_set_min_proto_version(self.0, ver) };
         if ret == 0 { return Err(ErrorStack::get()); }
         /* success == 1 */ Ok(())
     }
