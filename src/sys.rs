@@ -15,6 +15,7 @@ pub const SSL_VERIFY_PEER: c_int = 1;
 
 pub const SSL_CTRL_SET_MIN_PROTO_VERSION: c_int = 123;
 pub const SSL_CTRL_SET_TLSEXT_HOSTNAME: c_int = 55;
+
 pub const TLSEXT_NAMETYPE_host_name: c_long = 0;
 
 pub const SSL_FILETYPE_PEM: c_int = 1;
@@ -39,7 +40,8 @@ unsafe extern "C" {
     pub fn SSL_CTX_use_certificate_file(ctx: *mut SSL_CTX, file: *const c_char, _type: c_int) -> c_int;
     pub fn SSL_CTX_use_PrivateKey_file(ctx: *mut SSL_CTX, file: *const c_char, _type: c_int) -> c_int;
     pub fn SSL_CTX_check_private_key(ctx: *mut SSL_CTX) -> c_int;
-
+    pub fn SSL_CTX_set_cipher_list(ctx: *mut SSL_CTX, s: *const c_char) -> c_int;
+    pub fn SSL_CTX_set_options(ctx: *mut SSL_CTX, options: u64) -> u64;
     pub fn SSL_CTX_free(ctx: *mut SSL_CTX);
 
     pub fn SSL_new(ctx: *mut SSL_CTX) -> *mut SSL;

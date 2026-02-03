@@ -25,8 +25,14 @@ pub use async_ssl::AsyncSsl;
 pub mod version {
     use core::ffi::c_long;
 
-    pub const TLS1_0_VERSION: c_long = 0x0301;
+    pub const TLS1_VERSION: c_long = 0x0301;
     pub const TLS1_1_VERSION: c_long = 0x0302;
     pub const TLS1_2_VERSION: c_long = 0x0303;
     pub const TLS1_3_VERSION: c_long = 0x0304;
+}
+
+/// Available options for [`SslCtx::set_options`]. Only for legacy compatibility
+pub mod op {
+    pub const SSL_OP_LEGACY_SERVER_CONNECT: u64 = 4;
+    pub const SSL_OP_IGNORE_UNEXPECTED_EOF: u64 = 128;
 }

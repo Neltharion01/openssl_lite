@@ -51,6 +51,7 @@ fn s_client(addr: &str, insecure: bool) -> io::Result<()> {
     use std::ffi::CString;
 
     let mut ctx = SslCtx::new()?;
+    ctx.set_default_verify_paths()?;
     ctx.set_verify(!insecure);
 
     let sock = TcpStream::connect(addr)?;
@@ -89,7 +90,7 @@ async fn s_client_tokio_async(addr: &str, insecure: bool) -> io::Result<()> {
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
     let mut ctx = SslCtx::new()?;
-    // set SSL_MODE_AUTO_RETRY? SSL_ctx_set_mode or SSL_set_mode
+    ctx.set_default_verify_paths()?;
     ctx.set_verify(!insecure);
 
     let sock = TcpStream::connect(addr).await?;
