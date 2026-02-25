@@ -1,6 +1,7 @@
 use std::io;
 
 use openssl_lite::{SslCtx, Ssl, AsyncSsl};
+use openssl_lite::op::*;
 
 fn help() -> ! {
     eprintln!("Usage: openssl_lite <cmd>");
@@ -19,20 +20,22 @@ fn main() -> io::Result<()> {
     if cmd != "s_client" && cmd != "s_server" { help(); }
     let mut tokio = false;
     let mut insecure = false;
+    let mut ign_eof = false;
     let mut addr = String::new();
     for a in args {
         match a.as_str() {
             "-tokio" => tokio = true,
             "-insecure" => insecure = true,
+            "-ign_eof" => ign_eof = true,
             a if addr.is_empty() => addr = a.to_string(),
             _ => help(),
         }
     }
 
     if cmd == "s_client" && !tokio {
-        s_client(&addr, insecure)?;
+        s_client(&addr, insecure, ign_eof)?;
     } else if cmd == "s_client" && tokio {
-        s_client_tokio(&addr, insecure)?;
+        s_client_tokio(&addr, insecure, ign_eof)?;
     } else if cmd == "s_server" && !tokio {
         s_server(&addr)?;
     } else if cmd == "s_server" && tokio {
@@ -45,7 +48,7 @@ fn main() -> io::Result<()> {
     Ok(())
 }
 
-fn s_client(addr: &str, insecure: bool) -> io::Result<()> {
+fn s_client(addr: &str, insecure: bool, ign_eof: bool) -> io::Result<()> {
     use std::io::{Read, Write};
     use std::net::TcpStream;
     use std::ffi::CString;
@@ -53,6 +56,7 @@ fn s_client(addr: &str, insecure: bool) -> io::Result<()> {
     let mut ctx = SslCtx::new()?;
     ctx.set_default_verify_paths()?;
     ctx.set_verify(!insecure);
+    if ign_eof { ctx.set_options(SSL_OP_IGNORE_UNEXPECTED_EOF); }
 
     let sock = TcpStream::connect(addr)?;
     sock.set_nodelay(true)?;
@@ -77,14 +81,14 @@ fn s_client(addr: &str, insecure: bool) -> io::Result<()> {
     Ok(())
 }
 
-fn s_client_tokio(addr: &str, insecure: bool) -> io::Result<()> {
+fn s_client_tokio(addr: &str, insecure: bool, ign_eof: bool) -> io::Result<()> {
     tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()?
-        .block_on(s_client_tokio_async(addr, insecure))
+        .block_on(s_client_tokio_async(addr, insecure, ign_eof))
 }
 
-async fn s_client_tokio_async(addr: &str, insecure: bool) -> io::Result<()> {
+async fn s_client_tokio_async(addr: &str, insecure: bool, ign_eof: bool) -> io::Result<()> {
     use std::ffi::CString;
     use tokio::net::TcpStream;
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -92,6 +96,7 @@ async fn s_client_tokio_async(addr: &str, insecure: bool) -> io::Result<()> {
     let mut ctx = SslCtx::new()?;
     ctx.set_default_verify_paths()?;
     ctx.set_verify(!insecure);
+    if ign_eof { ctx.set_options(SSL_OP_IGNORE_UNEXPECTED_EOF); }
 
     let sock = TcpStream::connect(addr).await?;
     sock.set_nodelay(true)?;
